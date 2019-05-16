@@ -14,6 +14,10 @@
 # limitations under the License.
 #
 
+VERDIHOME = /home/shiz/usr/local/synopsys/K-2015.09
+PLIOPT :=
+PLIOPT += -P $(VERDIHOME)/share/PLI/VCS/LINUXAMD64/novas.tab $(VERDIHOME)/share/PLI/VCS/LINUXAMD64/pli.a
+
 # Check for RV_ROOT
 ifeq (,$(wildcard ${RV_ROOT}/configs/swerv.config))
 $(error env var RV_ROOT does not point to a valid dir! Exiting!)
@@ -29,7 +33,8 @@ SWERV_CONFIG = ${RV_ROOT}/configs/swerv.config
 IRUN = irun
 VCS = vcs
 VERILATOR = verilator
-GCC_PREFIX = riscv64-unknown-elf
+#GCC_PREFIX = riscv64-unknown-elf
+GCC_PREFIX = riscv32-unknown-elf
 
 # Define test name
 ifeq ($(strip $(ASM_TEST)),)
@@ -62,7 +67,7 @@ verilator: ${RV_ROOT}/configs/snapshots/$(snapshot)/common_defines.vh
 	$(MAKE) -C obj_dir/ -f Vswerv_wrapper.mk $(VERILATOR_MAKE_FLAGS)
 
 vcs: ${RV_ROOT}/configs/snapshots/$(snapshot)/common_defines.vh
-	$(VCS) -full64 -assert svaext -sverilog +define+RV_OPENSOURCE +error+500 +incdir+${RV_ROOT}/design/lib +incdir+${RV_ROOT}/design/include \
+	$(VCS) $(PLIOPT) -full64 -assert svaext -sverilog +define+RV_OPENSOURCE +error+500 +incdir+${RV_ROOT}/design/lib +incdir+${RV_ROOT}/design/include \
 		+incdir+${RV_ROOT}/design/dmi +incdir+${RV_ROOT}/configs/snapshots/$(snapshot)  +libext+.v ${RV_ROOT}/configs/snapshots/$(snapshot)/common_defines.vh \
 		${RV_ROOT}/design/include/def.sv -f ${RV_ROOT}/design/flist.vcs -l vcs.log
 
@@ -97,10 +102,15 @@ irun-run:
 
 vcs-run: ${RV_ROOT}/configs/snapshots/$(snapshot)/common_defines.vh
 	cp ${RV_ROOT}/testbench/hex/*.hex .
-	$(VCS) -full64 -assert svaext -sverilog +define+RV_OPENSOURCE +error+500 +incdir+${RV_ROOT}/design/lib +incdir+${RV_ROOT}/design/include \
+	$(VCS) $(PLIOPT) -full64 -assert svaext -sverilog +define+RV_OPENSOURCE +error+500 +incdir+${RV_ROOT}/design/lib +incdir+${RV_ROOT}/design/include \
 		+incdir+${RV_ROOT}/design/dmi +incdir+${RV_ROOT}/configs/snapshots/$(snapshot)  +libext+.v ${RV_ROOT}/configs/snapshots/$(snapshot)/common_defines.vh \
 		${RV_ROOT}/design/include/def.sv -f ${RV_ROOT}/design/flist.vcs ${RV_ROOT}/testbench/tb_top.sv -I${RV_ROOT}/testbench ${RV_ROOT}/testbench/ahb_sif.sv -l vcs.log
 	./simv
+
+verdi:
+	verdi -sverilog +define+RV_OPENSOURCE +incdir+${RV_ROOT}/design/lib +incdir+${RV_ROOT}/design/include \
+		+incdir+${RV_ROOT}/design/dmi +incdir+${RV_ROOT}/configs/snapshots/$(snapshot)  +libext+.v ${RV_ROOT}/configs/snapshots/$(snapshot)/common_defines.vh \
+		${RV_ROOT}/design/include/def.sv -f ${RV_ROOT}/design/flist.vcs ${RV_ROOT}/testbench/tb_top.sv -I${RV_ROOT}/testbench ${RV_ROOT}/testbench/ahb_sif.sv
 
 program.hex: $(ASM_TEST_DIR)/$(ASM_TEST).s ${RV_ROOT}/configs/snapshots/$(snapshot)/common_defines.vh
 	@echo Building $(ASM_TEST)
@@ -110,7 +120,8 @@ ifeq ($(shell which $(GCC_PREFIX)-as),)
 else
 	cp $(ASM_TEST_DIR)/$(ASM_TEST).s .
 	$(GCC_PREFIX)-cpp   -I${RV_ROOT}/configs/snapshots/$(snapshot)  $(ASM_TEST).s  > $(ASM_TEST).cpp.s
-	$(GCC_PREFIX)-as -march=rv32imc $(ASM_TEST).cpp.s -o $(ASM_TEST).o
+#$(GCC_PREFIX)-as -march=rv32imc $(ASM_TEST).cpp.s -o $(ASM_TEST).o
+	$(GCC_PREFIX)-as -march=rv32im $(ASM_TEST).cpp.s -o $(ASM_TEST).o
 	$(GCC_PREFIX)-ld -m elf32lriscv --discard-none -T${RV_ROOT}/testbench/link.ld -o $(ASM_TEST).exe $(ASM_TEST).o
 	$(GCC_PREFIX)-objcopy -O verilog --only-section ".data*" --only-section ".rodata*" $(ASM_TEST).exe data.hex
 	$(GCC_PREFIX)-objcopy -O verilog --only-section ".text*" --set-start=0x0 $(ASM_TEST).exe program.hex

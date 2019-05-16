@@ -48,6 +48,12 @@ logic [63:0] WriteMask;
 
 logic [7:0] mem [0:MEM_SIZE_DW-1];
 
+initial begin
+    for(int i=0; i<MEM_SIZE_DW; i=i+1)
+    begin
+        mem[i] = 8'h00;
+    end
+end
 
 // Wires
 wire [63:0] Next_WriteMask =  HSIZE == 3'b000 ? (64'hff << {HADDR[2:0], 3'b000}) : (HSIZE == 3'b001 ? (64'hffff << {HADDR[2], 4'h0}) : (HSIZE == 3'b010 ? (64'hffff_ffff << {HADDR[3],5'h0}) : 64'hffff_ffff_ffff_ffff));

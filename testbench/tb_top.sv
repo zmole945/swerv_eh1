@@ -123,7 +123,7 @@ module tb_top ( input logic core_clk, input logic reset_l, output finished);
 
    always @(posedge core_clk) begin
       //if(cycleCnt == 32'h800)
-        if(cycleCnt == 32'h800) begin
+        if(cycleCnt == 32'h8000) begin
             $display ("Hit max cycle count.. stopping");
             $finish;
         end
@@ -167,7 +167,7 @@ module tb_top ( input logic core_clk, input logic reset_l, output finished);
 `ifndef VERILATOR
      repeat (5) @(posedge core_clk);
      reset_l = 1;
-     #4500 $display("");$finish;
+     #45000 $display("");$finish;
 `endif
    end
 
@@ -179,16 +179,24 @@ initial begin
 end
 `endif
 
+initial begin
+    $fsdbAutoSwitchDumpfile(3000, "waveform.fsdb", 15);
+    $fsdbDumpvars(0, "tb_top");
+    $fsdbDumpMDA("tb_top");
+    $fsdbDumpon;
+end
+
    //=========================================================================-
    // RTL instance
    //=========================================================================-
    swerv_wrapper rvtop (
             .rst_l              ( reset_l       ),
             .clk                ( core_clk      ),
-            .rst_vec            ( 31'h40000000  ),
+            .rst_vec            ( 31'h00000000  ),
             .nmi_int            ( nmi_int       ),
             .nmi_vec            ( 31'h77000000  ),
 
+`ifdef RV_BUILD_AHB_LITE
             .haddr              ( ic_haddr      ),
             .hburst             ( ic_hburst     ),
             .hmastlock          ( ic_hmastlock  ),
@@ -200,7 +208,6 @@ end
             .hrdata             ( ic_hrdata[63:0]),
             .hready             ( ic_hready     ),
             .hresp              ( ic_hresp      ),
-
            //---------------------------------------------------------------
            // Debug AHB Master
            //---------------------------------------------------------------
@@ -250,6 +257,7 @@ end
            .dma_hrdata          ( dma_hrdata    ),
            .dma_hready          ( dma_hready    ),
            .dma_hresp           ( dma_hresp     ),
+`endif
 
            .timer_int           ( 1'b0     ),
            `ifdef TB_RESTRUCT
@@ -376,5 +384,5 @@ end
 
      );
 
-
 endmodule
+
